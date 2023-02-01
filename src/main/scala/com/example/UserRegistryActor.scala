@@ -21,7 +21,7 @@ object UserRegistryActor {
 class UserRegistryActor extends Actor with ActorLogging {
   import UserRegistryActor._
 
-  var users = Set(User("rom", 30, "Rus"))
+  var users = Set(User("rom", 30, "Rus"), User("anna", 30, "Rus"))
 
   def receive: Receive = {
     case GetUsers =>

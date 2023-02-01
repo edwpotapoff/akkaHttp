@@ -9,46 +9,28 @@ import akka.http.scaladsl.Http.IncomingConnection
 import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model.{ ContentTypes, HttpEntity, HttpRequest, HttpResponse, Uri }
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.Http
 import akka.stream.scaladsl.{ Flow, Sink }
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.io.StdIn
 
-//#main-class
 object QuickstartServer extends App with UserRoutes {
-
-  // set up ActorSystem and other dependencies here
-  //#main-class
-  //#server-bootstrapping
   implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
-  //implicit val materializer: ActorMaterializer = ActorMaterializer()
-  //#server-bootstrapping
 
   val userRegistryActor: ActorRef = system.actorOf(UserRegistryActor.props, "userRegistryActor")
-
-  //#main-class
-  // from the UserRoutes trait
   lazy val routes: Route = userRoutes
-  //#main-class
+//  Http().bindAndHandle(routes, "localhost", 8080)
+//  println(s"Server online at http://localhost:8080/")
+//  Await.result(system.whenTerminated, Duration.Inf)
 
-  //#http-server
-  Http().bindAndHandle(routes, "localhost", 8080)
 
-  println(s"Server online at http://localhost:8080/")
-
-  Await.result(system.whenTerminated, Duration.Inf)
-  //#http-server
-  //#main-class
-
-  /*
-  // needed for the future map/flatmap in the end
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   val currOpenConn = new AtomicInteger(0)
   val countRequests = new AtomicInteger(0)
   val maxConn = new AtomicInteger(0)
   var start, finish: Long = 0
+
   val requestHandler: HttpRequest => HttpResponse = {
     case HttpRequest(GET, Uri.Path("/"), _, _, _) =>
       HttpResponse(entity = HttpEntity(
@@ -60,6 +42,16 @@ object QuickstartServer extends App with UserRoutes {
       val tc = countRequests.incrementAndGet()
 
       HttpResponse(entity = "{users:[]}")
+
+    case HttpRequest(GET, Uri.Path("/users/anna"), _, _, _) =>
+      val tc = countRequests.incrementAndGet()
+
+      HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"anna\"}")
+
+    case HttpRequest(GET, Uri.Path("/users/rom"), _, _, _) =>
+      val tc = countRequests.incrementAndGet()
+
+      HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"rom\"}")
 
     case HttpRequest(GET, Uri.Path("/crash"), _, _, _) =>
       sys.error("BOOM!")
@@ -106,7 +98,5 @@ object QuickstartServer extends App with UserRoutes {
       system.terminate()
     } // and shutdown when done
 
-   */
+
 }
-//#main-class
-//#quick-start-server
