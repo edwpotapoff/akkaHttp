@@ -35,7 +35,7 @@ object QuickstartServer extends App with UserRoutes {
   var start, finish: Long = 0
 
 
-  val password: Array[Char] = "123456".toCharArray // do not store passwords in code, read them from somewhere safe!
+  /*val password: Array[Char] = "123456".toCharArray // do not store passwords in code, read them from somewhere safe!
 
   val ks: KeyStore = KeyStore.getInstance("PKCS12")
   val keystore: InputStream = new FileInputStream("c:/temp/keystore.jks") // getClass.getClassLoader.getResourceAsStream("server.p12")
@@ -51,7 +51,9 @@ object QuickstartServer extends App with UserRoutes {
 
   val sslContext: SSLContext = SSLContext.getInstance("TLS")
   sslContext.init(keyManagerFactory.getKeyManagers, tmf.getTrustManagers, new SecureRandom)
+
   val https = ConnectionContext.httpsServer(sslContext)
+   */
 
 
   val requestHandler: HttpRequest => HttpResponse = {
@@ -83,7 +85,7 @@ object QuickstartServer extends App with UserRoutes {
       HttpResponse(404, entity = "Unknown resource!")
   }
 
-  def serverSource = Http().newServerAt("localhost", 8080).enableHttps(https).connectionSource()
+  def serverSource = Http().newServerAt("localhost", 8080)/*.enableHttps(https)*/.connectionSource()
 
   val react = Flow[IncomingConnection].watchTermination()((_, termination) => termination.onComplete(_ => currOpenConn.decrementAndGet()))
 
