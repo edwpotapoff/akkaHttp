@@ -103,7 +103,7 @@ object QuickstartServer extends App with UserRoutes {
                 val finish = System.nanoTime()
                 val c = countRequests.get()
                 val tho = c / ((finish/1000000D - start/1000000D)/ 1000)
-                println(s"count requests $c, connections ${maxConn.get()}, speed $tho requests in second")
+                println(s"count requests $c, connections ${maxConn.get()}, speed $tho RPS")
                 maxConn.set(0)
                 countRequests.set(0)
               }
