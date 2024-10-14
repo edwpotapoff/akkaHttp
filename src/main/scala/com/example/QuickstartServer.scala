@@ -1,7 +1,5 @@
 package com.example
 
-//#quick-start-server
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.IncomingConnection
@@ -19,10 +17,6 @@ object QuickstartServer extends App with UserRoutes {
 
   val userRegistryActor: ActorRef = system.actorOf(UserRegistryActor.props, "userRegistryActor")
   lazy val routes: Route = userRoutes
-  //  Http().bindAndHandle(routes, "localhost", 8080)
-  //  println(s"Server online at http://localhost:8080/")
-  //  Await.result(system.whenTerminated, Duration.Inf)
-
 
   implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -30,7 +24,6 @@ object QuickstartServer extends App with UserRoutes {
   val countRequests = new AtomicInteger(0)
   val maxConn = new AtomicInteger(0)
   var start: Long = 0
-
 
   /*val password: Array[Char] = "123456".toCharArray // do not store passwords in code, read them from somewhere safe!
 
@@ -74,6 +67,36 @@ object QuickstartServer extends App with UserRoutes {
       //        Thread.sleep(50)
       HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"rom\"}")
 
+    case HttpRequest(GET, Uri.Path("/books"), _, _, _) =>
+      val tc = countRequests.incrementAndGet()
+      //     if( tc%2 == 1 )
+      //        Thread.sleep(50)
+      HttpResponse(entity =
+        """{
+          |  "books": [
+          |    {
+          |      "title": "The Great Gatsby",
+          |      "author": "F. Scott Fitzgerald",
+          |      "year": 1925,
+          |      "genre": "novel"
+          |    },
+          |    {
+          |      "title": "The Catcher in the Rye",
+          |      "author": "J.D. Salinger",
+          |      "year": 1951,
+          |      "genre": "novel"
+          |    },
+          |    {
+          |      "title": "1984",
+          |      "author": "George Orwell",
+          |      "year": 1949,
+          |      "genre": "novel"
+          |    }
+          |  ]
+          |}
+          |""".stripMargin)
+
+
     case HttpRequest(GET, Uri.Path("/crash"), _, _, _) =>
       sys.error("BOOM!")
 
@@ -102,7 +125,7 @@ object QuickstartServer extends App with UserRoutes {
               if (tc == 0) {
                 val finish = System.nanoTime()
                 val c = countRequests.get()
-                val tho = c / ((finish/1000000D - start/1000000D)/ 1000)
+                val tho = c / ((finish / 1000000D - start / 1000000D) / 1000)
                 println(s"count requests $c, connections ${maxConn.get()}, speed $tho RPS")
                 maxConn.set(0)
                 countRequests.set(0)
