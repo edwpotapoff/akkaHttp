@@ -3,10 +3,11 @@ package com.example
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.IncomingConnection
-import akka.http.scaladsl.model.HttpMethods.GET
+import akka.http.scaladsl.model.HttpMethods.{GET, POST}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.{Flow, Sink}
+import akka.util.ByteString
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.{ExecutionContext, Future}
@@ -80,32 +81,40 @@ object QuickstartServer extends App with UserRoutes {
    */
 
 
-  val requestHandler: HttpRequest => HttpResponse = {
+  def parse(query: String) = {
+    val params: Array[String] = query.split("&")
+    params.map { p =>
+      val pk = p.split("=")
+      s"key = ${pk(0)} value = ${pk(1)}"
+    }.mkString("\n")
+  }
+
+  val requestHandler: HttpRequest => Future[HttpResponse] = {
     case HttpRequest(GET, Uri.Path("/"), _, _, _) =>
-      HttpResponse(entity = HttpEntity(
+      Future(HttpResponse(entity = HttpEntity(
         ContentTypes.`text/html(UTF-8)`,
         "<html><body>Hello world!</body></html>"
-      ))
+      )))
 
     case HttpRequest(GET, Uri.Path("/users"), _, _, _) =>
       val tc = countRequests.incrementAndGet()
-      HttpResponse(entity = "{users:[]}")
+      Future(HttpResponse(entity = "{users:[]}"))
 
     case HttpRequest(GET, Uri.Path("/users/anna"), _, _, _) =>
       val tc = countRequests.incrementAndGet()
-      HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"anna\"}")
+      Future(HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"anna\"}"))
 
     case HttpRequest(GET, Uri.Path("/users/rom"), _, _, _) =>
       val tc = countRequests.incrementAndGet()
       //     if( tc%2 == 1 )
       //        Thread.sleep(50)
-      HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"rom\"}")
+      Future(HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"rom\"}"))
 
     case HttpRequest(GET, Uri.Path("/books"), _, _, _) =>
       val tc = countRequests.incrementAndGet()
       //     if( tc%2 == 1 )
       //        Thread.sleep(50)
-      HttpResponse(entity =
+      Future(HttpResponse(entity =
         """{
           |  "books": [
           |    {
@@ -128,28 +137,28 @@ object QuickstartServer extends App with UserRoutes {
           |    }
           |  ]
           |}
-          |""".stripMargin)
+          |""".stripMargin))
 
     case HttpRequest(GET, r@Uri.Path("/page"), _, _, _) =>
       r.queryString() match {
         case Some(query) =>
-          val params: Array[String] = query.split("&")
-          val resp = params.map { p =>
-            val pk = p.split("=")
-            s"key = ${pk(0)} value = ${pk(1)}"
-          }.mkString("\n")
-          HttpResponse(entity = resp)
+          Future(HttpResponse(entity = parse(query)))
         case None =>
-          HttpResponse(404, entity = "Unknown resource!")
+          Future(HttpResponse(404, entity = "Unknown resource!"))
       }
 
-
+    case HttpRequest(POST, Uri.Path("/new"), attributes, entity, protocol) =>
+      println(entity)
+      val p: Future[ByteString] = entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+      p.map { query =>
+        HttpResponse(entity = parse(new String(query.toArray)))
+      }
     case HttpRequest(GET, Uri.Path("/crash"), _, _, _) =>
-      sys.error("BOOM!")
+      Future(sys.error("BOOM!"))
 
     case r: HttpRequest =>
       r.discardEntityBytes() // important to drain incoming HTTP Entity stream
-      HttpResponse(404, entity = "Unknown resource!")
+      Future(HttpResponse(404, entity = "Unknown resource!"))
   }
 
   def serverSource = Http().newServerAt("localhost", 8080) /*.enableHttps(https)*/ .connectionSource()
@@ -165,7 +174,7 @@ object QuickstartServer extends App with UserRoutes {
       }
 
       connection.handleWith(
-        Flow[HttpRequest].map(requestHandler)
+        Flow[HttpRequest].mapAsync(1)(requestHandler)
           .watchTermination()((_, connClosedFuture) => {
             connClosedFuture.onComplete { _ =>
               val tc = currOpenConn.decrementAndGet()
