@@ -4,9 +4,10 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.IncomingConnection
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
-import akka.stream.scaladsl.{Flow, Sink}
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -89,6 +90,31 @@ object QuickstartServer extends App with UserRoutes {
     }.mkString("\n")
   }
 
+  //#websocket-handler
+  // The Greeter WebSocket Service expects a "name" per message and
+  // returns a greeting message for that name
+  val greeterWebSocketService =
+  Flow[Message]
+    .mapConcat {
+      // we match but don't actually consume the text message here,
+      // rather we simply stream it back as the tail of the response
+      // this means we might start sending the response even before the
+      // end of the incoming message has been received
+      case tm: TextMessage =>
+        //        val st = tm.textStream
+        //        val p: Future[String] = st.runFold("")(_ ++ _)
+        //        p.foreach { is =>
+        //          val rez = new String(is.toArray)
+        //          println(s"get $rez")
+        //        }
+
+        TextMessage(Source.single("Hello ") ++ tm.textStream ++ Source.single("!")) :: Nil
+      case bm: BinaryMessage =>
+        // ignore binary messages but drain content to avoid the stream being clogged
+        bm.dataStream.runWith(Sink.ignore)
+        Nil
+    }
+  //#websocket-handler
   val requestHandler: HttpRequest => Future[HttpResponse] = {
     case HttpRequest(GET, Uri.Path("/"), _, _, _) =>
       Future(HttpResponse(entity = HttpEntity(
@@ -140,6 +166,7 @@ object QuickstartServer extends App with UserRoutes {
           |""".stripMargin))
 
     case HttpRequest(GET, r@Uri.Path("/page"), _, _, _) =>
+      countRequests.incrementAndGet()
       r.queryString() match {
         case Some(query) =>
           Future(HttpResponse(entity = parse(query)))
@@ -148,13 +175,20 @@ object QuickstartServer extends App with UserRoutes {
       }
 
     case HttpRequest(POST, Uri.Path("/new"), attributes, entity, protocol) =>
-      println(entity)
+      countRequests.incrementAndGet()
       val p: Future[ByteString] = entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       p.map { query =>
         HttpResponse(entity = parse(new String(query.toArray)))
       }
     case HttpRequest(GET, Uri.Path("/crash"), _, _, _) =>
       Future(sys.error("BOOM!"))
+    case req@HttpRequest(GET, Uri.Path("/greeter"), _, _, _) =>
+      countRequests.incrementAndGet()
+      req.attribute(AttributeKeys.webSocketUpgrade) match {
+        case Some(upgrade) => Future(upgrade.handleMessages(greeterWebSocketService))
+        case None => Future(HttpResponse(400, entity = "Not a valid websocket request!"))
+      }
+
 
     case r: HttpRequest =>
       r.discardEntityBytes() // important to drain incoming HTTP Entity stream
@@ -195,6 +229,8 @@ object QuickstartServer extends App with UserRoutes {
 
 
   StdIn.readLine() // let it run until user presses return
+  StdIn.readLine() // let it run until user presses return
+
   bindingFuture
     .flatMap(_.unbind()) // trigger unbinding from the port
     .onComplete { _ =>
