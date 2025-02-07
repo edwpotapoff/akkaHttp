@@ -1,18 +1,16 @@
 
-lazy val akkaHttpVersion = "10.4.0"
-lazy val akkaVersion = "2.7.0"
+val PekkoVersion = "1.1.2"
+val PekkoHttpVersion = "1.1.0"
 
 lazy val root = (project in file("."))
   .settings(
     inThisBuild(List(
       organization := "com.example",
-      scalaVersion := "2.13.10"
+      scalaVersion := "3.3.3"
     )),
     name := "akkaHttp",
     libraryDependencies ++= Seq(
-      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-stream" % akkaVersion
+      "org.apache.pekko" %% "pekko-stream" % PekkoVersion,
+      "org.apache.pekko" %% "pekko-http" % PekkoHttpVersion
     )
   )

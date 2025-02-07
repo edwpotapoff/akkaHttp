@@ -1,15 +1,14 @@
 package com.example
 
-import akka.Done
-import akka.actor.{ActorRef, ActorSystem}
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.Http.IncomingConnection
-import akka.http.scaladsl.model.HttpMethods.{GET, POST}
-import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Route
-import akka.stream.scaladsl.{Flow, RunnableGraph, Sink, Source}
-import akka.util.ByteString
+import org.apache.pekko.Done
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.Http.IncomingConnection
+import org.apache.pekko.http.scaladsl.model.*
+import org.apache.pekko.http.scaladsl.model.HttpMethods.{GET, POST}
+import org.apache.pekko.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
+import org.apache.pekko.stream.scaladsl.{Flow, RunnableGraph, Sink, Source}
+import org.apache.pekko.util.ByteString
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.{ExecutionContext, Future}
@@ -91,27 +90,27 @@ object QuickstartServer extends App {
   // The Greeter WebSocket Service expects a "name" per message and
   // returns a greeting message for that name
   val greeterWebSocketService =
-  Flow[Message]
-    .mapConcat {
-      // we match but don't actually consume the text message here,
-      // rather we simply stream it back as the tail of the response
-      // this means we might start sending the response even before the
-      // end of the incoming message has been received
-      case tm: TextMessage =>
-        //        val st = tm.textStream
-        //        val p: Future[String] = st.runFold("")(_ ++ _)
-        //        p.foreach { is =>
-        //          val rez = new String(is.toArray)
-        //          println(s"get $rez")
-        //        }
+    Flow[Message]
+      .mapConcat {
+        // we match but don't actually consume the text message here,
+        // rather we simply stream it back as the tail of the response
+        // this means we might start sending the response even before the
+        // end of the incoming message has been received
+        case tm: TextMessage =>
+          //        val st = tm.textStream
+          //        val p: Future[String] = st.runFold("")(_ ++ _)
+          //        p.foreach { is =>
+          //          val rez = new String(is.toArray)
+          //          println(s"get $rez")
+          //        }
 
-        TextMessage(Source.single("Hello ") ++ tm.textStream ++ Source.single("!")) :: Nil
-      case bm: BinaryMessage =>
-        // ignore binary messages but drain content to avoid the stream being clogged
-        BinaryMessage(Source.single(ByteString("Hello ")) ++ bm.dataStream ++ Source.single(ByteString("!"))) :: Nil
-      //bm.dataStream.runWith(Sink.ignore)
-      //Nil
-    }
+          TextMessage(Source.single("Hello ") ++ tm.textStream ++ Source.single("!")) :: Nil
+        case bm: BinaryMessage =>
+          // ignore binary messages but drain content to avoid the stream being clogged
+          BinaryMessage(Source.single(ByteString("Hello ")) ++ bm.dataStream ++ Source.single(ByteString("!"))) :: Nil
+        //bm.dataStream.runWith(Sink.ignore)
+        //Nil
+      }
   //#websocket-handler
   val requestHandler: HttpRequest => Future[HttpResponse] = {
     case HttpRequest(GET, Uri.Path("/"), _, _, _) =>
@@ -193,9 +192,9 @@ object QuickstartServer extends App {
       Future(HttpResponse(404, entity = "Unknown resource!"))
   }
 
-  def serverSource = Http().newServerAt("localhost", 8080) /*.enableHttps(https)*/ .connectionSource()
+  def serverSource = Http().newServerAt("localhost", 8080) /*.enableHttps(https)*/.connectionSource()
 
-  val sinkIncomingConnection: Sink[IncomingConnection, Future[Done]] = Sink.foreach { connection: IncomingConnection =>
+  val sinkIncomingConnection: Sink[IncomingConnection, Future[Done]] = Sink.foreach { con =>
 
     val tc = currOpenConn.incrementAndGet()
     if (maxConn.get() < tc) {
@@ -204,7 +203,7 @@ object QuickstartServer extends App {
         start = System.nanoTime()
     }
 
-    connection.handleWith(
+    con.handleWith(
       Flow[HttpRequest].mapAsync(1)(requestHandler)
         .watchTermination()((_, connClosedFuture) => {
           connClosedFuture.onComplete { _ =>
