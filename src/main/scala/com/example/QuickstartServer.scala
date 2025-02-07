@@ -1,5 +1,6 @@
 package com.example
 
+import akka.Done
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.IncomingConnection
@@ -7,19 +8,15 @@ import akka.http.scaladsl.model.HttpMethods.{GET, POST}
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Flow, RunnableGraph, Sink, Source}
 import akka.util.ByteString
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.StdIn
 
-object QuickstartServer extends App with UserRoutes {
+object QuickstartServer extends App {
   implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
-
-  val userRegistryActor: ActorRef = system.actorOf(UserRegistryActor.props, "userRegistryActor")
-  lazy val routes: Route = userRoutes
-
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   val currOpenConn = new AtomicInteger(0)
@@ -198,33 +195,36 @@ object QuickstartServer extends App with UserRoutes {
 
   def serverSource = Http().newServerAt("localhost", 8080) /*.enableHttps(https)*/ .connectionSource()
 
-  val bindingFuture: Future[Http.ServerBinding] =
-    serverSource.to(Sink.foreach { connection: IncomingConnection =>
+  val sinkIncomingConnection: Sink[IncomingConnection, Future[Done]] = Sink.foreach { connection: IncomingConnection =>
 
-      val tc = currOpenConn.incrementAndGet()
-      if (maxConn.get() < tc) {
-        maxConn.set(tc)
-        if (tc == 1)
-          start = System.nanoTime()
-      }
+    val tc = currOpenConn.incrementAndGet()
+    if (maxConn.get() < tc) {
+      maxConn.set(tc)
+      if (tc == 1)
+        start = System.nanoTime()
+    }
 
-      connection.handleWith(
-        Flow[HttpRequest].mapAsync(1)(requestHandler)
-          .watchTermination()((_, connClosedFuture) => {
-            connClosedFuture.onComplete { _ =>
-              val tc = currOpenConn.decrementAndGet()
-              if (tc == 0) {
-                val finish = System.nanoTime()
-                val c = countRequests.get()
-                val tho = c / ((finish / 1000000D - start / 1000000D) / 1000)
-                println(s"count requests $c, connections ${maxConn.get()}, speed $tho RPS")
-                maxConn.set(0)
-                countRequests.set(0)
-              }
+    connection.handleWith(
+      Flow[HttpRequest].mapAsync(1)(requestHandler)
+        .watchTermination()((_, connClosedFuture) => {
+          connClosedFuture.onComplete { _ =>
+            val tc = currOpenConn.decrementAndGet()
+            if (tc == 0) {
+              val finish = System.nanoTime()
+              val c = countRequests.get()
+              val tho = c / ((finish / 1000000D - start / 1000000D) / 1000)
+              println(s"count requests $c, connections ${maxConn.get()}, speed $tho RPS")
+              maxConn.set(0)
+              countRequests.set(0)
             }
-          })
-      )
-    }).run()
+          }
+        })
+    )
+  }
+
+  val server: RunnableGraph[Future[Http.ServerBinding]] = serverSource.to(sinkIncomingConnection)
+
+  val bindingFuture: Future[Http.ServerBinding] = server.run()
 
   println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
 
