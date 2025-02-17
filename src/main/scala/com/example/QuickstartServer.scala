@@ -24,39 +24,6 @@ object QuickstartServer extends App {
   val maxConn = new AtomicInteger(0)
   var start: Long = 0
 
-  import scala.util.matching.Regex
-
-  val str = "([0-9a-zA-Z- ]+): ([0-9a-zA-Z-#()/. ]+)"
-  val keyValPattern: Regex = str.r
-
-  val input: String =
-    """background-color: #A03300;
-      |background-image: url(img/header100.png);
-      |background-position: top center;
-      |background-repeat: repeat-x;
-      |background-size: 2160px 108px;
-      |margin: 0;
-      |height: 108px;
-      |width: 100%;""".stripMargin
-
-  for (patternMatch <- keyValPattern.findAllMatchIn(input))
-    println(s"key: ${patternMatch.group(1)} value: ${patternMatch.group(2)}")
-
-  def printA(a: Any) = a match {
-    case () => println("Unit")
-      println(a)
-
-    case _ => println(a)
-  }
-
-  printA(())
-  printA("что-то")
-
-  def a(): Unit = {
-    println("ничего")
-  }
-
-  printA(a())
 
   /*val password: Array[Char] = "123456".toCharArray // do not store passwords in code, read them from somewhere safe!
 
