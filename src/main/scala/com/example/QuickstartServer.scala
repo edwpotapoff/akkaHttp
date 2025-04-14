@@ -1,13 +1,13 @@
 package com.example
 
 import akka.Done
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.IncomingConnection
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
-import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.stream.scaladsl.{Flow, RunnableGraph, Sink, Source}
 import akka.util.ByteString
 
@@ -54,38 +54,63 @@ object QuickstartServer extends App {
     }.mkString("\n")
   }
 
+  val token = BasicHttpCredentials("user", "pass").value// .token()
+
   //#websocket-handler
   // The Greeter WebSocket Service expects a "name" per message and
   // returns a greeting message for that name
   val greeterWebSocketService =
-  Flow[Message]
-    .mapConcat {
-      // we match but don't actually consume the text message here,
-      // rather we simply stream it back as the tail of the response
-      // this means we might start sending the response even before the
-      // end of the incoming message has been received
-      case tm: TextMessage =>
-        //        val st = tm.textStream
-        //        val p: Future[String] = st.runFold("")(_ ++ _)
-        //        p.foreach { is =>
-        //          val rez = new String(is.toArray)
-        //          println(s"get $rez")
-        //        }
+    Flow[Message]
+      .mapConcat {
+        // we match but don't actually consume the text message here,
+        // rather we simply stream it back as the tail of the response
+        // this means we might start sending the response even before the
+        // end of the incoming message has been received
+        case tm: TextMessage =>
+          //        val st = tm.textStream
+          //        val p: Future[String] = st.runFold("")(_ ++ _)
+          //        p.foreach { is =>
+          //          val rez = new String(is.toArray)
+          //          println(s"get $rez")
+          //        }
 
-        TextMessage(Source.single("Hello ") ++ tm.textStream ++ Source.single("!")) :: Nil
-      case bm: BinaryMessage =>
-        // ignore binary messages but drain content to avoid the stream being clogged
-        BinaryMessage(Source.single(ByteString("Hello ")) ++ bm.dataStream ++ Source.single(ByteString("!"))) :: Nil
-      //bm.dataStream.runWith(Sink.ignore)
-      //Nil
-    }
+          TextMessage(Source.single("Hello ") ++ tm.textStream ++ Source.single("!")) :: Nil
+        case bm: BinaryMessage =>
+          // ignore binary messages but drain content to avoid the stream being clogged
+          BinaryMessage(Source.single(ByteString("Hello ")) ++ bm.dataStream ++ Source.single(ByteString("!"))) :: Nil
+        //bm.dataStream.runWith(Sink.ignore)
+        //Nil
+      }
   //#websocket-handler
   val requestHandler: HttpRequest => Future[HttpResponse] = {
-    case HttpRequest(GET, Uri.Path("/"), _, _, _) =>
-      Future(HttpResponse(entity = HttpEntity(
-        ContentTypes.`text/html(UTF-8)`,
-        "<html><body>Hello world!</body></html>"
-      )))
+    case HttpRequest(GET, Uri.Path("/"), headers, _, _) =>
+      println()
+
+      var check = false
+      headers.foreach {
+        h =>
+          if (h.is(Authorization.lowercaseName)) {
+            val v = h.value()
+            if ( v == token)
+              check = true
+            else
+              println(s"$v != $token")
+          }
+      }
+
+      if (check) {
+        Future(HttpResponse(entity = HttpEntity(
+          ContentTypes.`text/html(UTF-8)`,
+          "<html><body>Hello world!</body></html>"
+        )))
+      } else
+        Future(HttpResponse(
+          StatusCodes.Unauthorized,
+          entity = HttpEntity(
+            ContentTypes.`text/html(UTF-8)`,
+            "<html><body>Unauthorized</body></html>"
+          )))
+
 
     case HttpRequest(GET, Uri.Path("/users"), _, _, _) =>
       val tc = countRequests.incrementAndGet()
@@ -160,7 +185,7 @@ object QuickstartServer extends App {
       Future(HttpResponse(404, entity = "Unknown resource!"))
   }
 
-  def serverSource = Http().newServerAt("localhost", 8080) /*.enableHttps(https)*/ .connectionSource()
+  def serverSource = Http().newServerAt("localhost", 8080) /*.enableHttps(https)*/.connectionSource()
 
   val sinkIncomingConnection: Sink[IncomingConnection, Future[Done]] = Sink.foreach { connection: IncomingConnection =>
 
@@ -170,6 +195,7 @@ object QuickstartServer extends App {
       if (tc == 1)
         start = System.nanoTime()
     }
+
 
     connection.handleWith(
       Flow[HttpRequest].mapAsync(1)(requestHandler)
