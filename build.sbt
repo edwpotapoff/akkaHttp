@@ -1,5 +1,5 @@
 
-lazy val akkaHttpVersion = "10.4.0"
+lazy val akkaHttpVersion = "10.5.1"
 lazy val akkaVersion = "2.7.0"
 
 lazy val root = (project in file("."))
@@ -13,6 +13,9 @@ lazy val root = (project in file("."))
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion,
+      "io.netty" % "netty-codec-http2" % "4.2.0.Final",
+      "io.netty" % "netty-pkitesting" % "4.2.0.Final",
+      "io.netty" % "netty-all" % "4.2.0.Final",
       "com.typesafe.akka" %% "akka-stream" % akkaVersion
     )
   )
