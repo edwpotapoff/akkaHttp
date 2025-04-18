@@ -16,6 +16,8 @@ lazy val root = (project in file("."))
       "io.netty" % "netty-codec-http2" % "4.2.0.Final",
       "io.netty" % "netty-pkitesting" % "4.2.0.Final",
       "io.netty" % "netty-all" % "4.2.0.Final",
+      "org.bouncycastle" % "bcprov-jdk15on" % "1.70" % "runtime",
+      "org.bouncycastle" % "bcpkix-jdk15on" % "1.70" % "runtime",
       "com.typesafe.akka" %% "akka-stream" % akkaVersion
     )
   )
