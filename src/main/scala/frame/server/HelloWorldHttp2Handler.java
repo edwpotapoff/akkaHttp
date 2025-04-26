@@ -23,6 +23,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http2.*;
 import io.netty.util.CharsetUtil;
 
+import java.util.Iterator;
+
 import static io.netty.buffer.Unpooled.copiedBuffer;
 import static io.netty.buffer.Unpooled.unreleasableBuffer;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -67,8 +69,12 @@ public class HelloWorldHttp2Handler extends ChannelDuplexHandler {
     private static void onDataRead(ChannelHandlerContext ctx, Http2DataFrame data) throws Exception {
         Http2FrameStream stream = data.stream();
 
+        ByteBuf content = data.content();
+        System.out.println("get Http2DataFrame: " + content.toString());
+
+
         if (data.isEndStream()) {
-            sendResponse(ctx, stream, data.content());
+            sendResponse(ctx, stream, content);
         } else {
             // We do not send back the response to the remote-peer, so we need to release it.
             data.release();
@@ -83,6 +89,17 @@ public class HelloWorldHttp2Handler extends ChannelDuplexHandler {
      */
     private static void onHeadersRead(ChannelHandlerContext ctx, Http2HeadersFrame headers)
             throws Exception {
+        System.out.println("get Http2HeadersFrame -");
+
+        headers.headers().forEach(entry -> {
+            CharSequence name = entry.getKey();
+            if (name.length() > 0 && name.charAt(0) == ':') {
+                System.out.println("[Pseudo-Header] " + name + ": " + entry.getValue());
+            } else {
+                System.out.println(name + ": " + entry.getValue());
+            }
+        });
+
         if (headers.isEndStream()) {
             ByteBuf content = ctx.alloc().buffer();
             content.writeBytes(RESPONSE_BYTES.duplicate());
