@@ -47,7 +47,7 @@ public final class Http2Server {
 
     static final boolean SSL = true; // System.getProperty("ssl") != null;
 
-    static final int PORT = Integer.parseInt(System.getProperty("port", SSL? "8443" : "8080"));
+    static final int PORT = Integer.parseInt(System.getProperty("port", SSL ? "443" : "8080"));
 
     public static void main(String[] args) throws Exception {
         // Configure SSL.

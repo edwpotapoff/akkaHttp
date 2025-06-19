@@ -54,7 +54,7 @@ object QuickstartServer extends App {
     }.mkString("\n")
   }
 
-  val token = BasicHttpCredentials("user", "pass").value// .token()
+  val token = BasicHttpCredentials("user", "pass").value // .token()
 
   //#websocket-handler
   // The Greeter WebSocket Service expects a "name" per message and
@@ -67,12 +67,12 @@ object QuickstartServer extends App {
         // this means we might start sending the response even before the
         // end of the incoming message has been received
         case tm: TextMessage =>
-          //        val st = tm.textStream
-          //        val p: Future[String] = st.runFold("")(_ ++ _)
-          //        p.foreach { is =>
-          //          val rez = new String(is.toArray)
-          //          println(s"get $rez")
-          //        }
+          val st = tm.textStream
+          val p: Future[String] = st.runFold("")(_ ++ _)
+          p.foreach { is =>
+            val rez = new String(is.toArray)
+            println(s"get $rez")
+          }
 
           TextMessage(Source.single("Hello ") ++ tm.textStream ++ Source.single("!")) :: Nil
         case bm: BinaryMessage =>
@@ -91,7 +91,7 @@ object QuickstartServer extends App {
         h =>
           if (h.is(Authorization.lowercaseName)) {
             val v = h.value()
-            if ( v == token)
+            if (v == token)
               check = true
             else
               println(s"$v != $token")
@@ -118,10 +118,12 @@ object QuickstartServer extends App {
 
     case HttpRequest(GET, Uri.Path("/users/anna"), _, _, _) =>
       val tc = countRequests.incrementAndGet()
+      //Thread.sleep(5000)
       Future(HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"anna\"}"))
 
     case HttpRequest(GET, Uri.Path("/users/rom"), _, _, _) =>
       val tc = countRequests.incrementAndGet()
+      //Thread.sleep(5000)
       //     if( tc%2 == 1 )
       //        Thread.sleep(50)
       Future(HttpResponse(entity = "{\"age\":30,\"countryOfResidence\":\"Rus\",\"name\":\"rom\"}"))
@@ -222,7 +224,6 @@ object QuickstartServer extends App {
   println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
 
 
-  StdIn.readLine() // let it run until user presses return
   StdIn.readLine() // let it run until user presses return
 
   bindingFuture
